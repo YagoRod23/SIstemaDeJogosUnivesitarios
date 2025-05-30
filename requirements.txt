@@ -1,0 +1,5 @@
+customtkinter==5.2.0 # Para interfaces modernas (opcional)
+
+reportlab==4.0.4 # Para gerar relatórios em PDF
+
+pandas==2.0.3 # Para análise de dados
