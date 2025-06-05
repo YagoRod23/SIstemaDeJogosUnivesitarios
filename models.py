@@ -5,6 +5,23 @@ from config import PONTOS_VITORIA, PONTOS_EMPATE, PONTOS_DERROTA
 
 class Competicao:
     @staticmethod
+    def listar_todas():
+        """Lista todas as competições (ID e Nome) para preencher comboboxes"""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, nome FROM competicao")  # Corrigido o nome da tabela
+                return cursor.fetchall()  # Retorna [(id, nome), ...]
+            except sqlite3.Error as e:
+                print(f"Erro ao listar competições: {e}")
+                return []
+            finally:
+                conn.close()
+        return []
+
+
+    @staticmethod
     def criar(nome, modalidade, formato):
         conn = criar_conexao()
         if conn:
@@ -29,10 +46,14 @@ class Competicao:
         if conn:
             try:
                 cursor = conn.cursor()
-                cursor.execute("SELECT id, nome, modalidade FROM competicao")
-                return cursor.fetchall()
+            # Adicione AS colunas necessárias
+                cursor.execute("SELECT id, nome, modalidade, formato_disputa FROM competicoes")
+                return [
+                    Competicao(nome=c[1], modalidade=c[2], formato=c[3], id=c[0]) for c in cursor.fetchall()
+                ]
             except sqlite3.Error as e:
-                print(f"Erro ao carregar competições: {e}")
+                print(f"Erro: {e}")
+                return []
             finally:
                 conn.close()
         return []
