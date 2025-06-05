@@ -395,15 +395,19 @@ class AtletaFrame(tk.Frame):
             if Atleta.criar(nome=nome, numero=numero, time_id=self.current_time_id):
                 messagebox.showinfo("Sucesso", f"Atleta '{nome}' adicionado ao time!")
                 self.entry_nome.delete(0, 'end')
-                self.entry_numero.set(0)
-                self.carregar_atletas()
+                # Correct way to reset Spinbox:
+                self.entry_numero.delete(0, 'end')
+                self.entry_numero.insert(0, '0')
+                self.carregar_atletas() # Refresh list
             else:
                 messagebox.showerror("Erro", f"Não foi possível adicionar o atleta '{nome}'.")
         except Exception as e:
+            # Log the full error for debugging
+            print(f"Erro detalhado ao adicionar atleta: {e}")
             messagebox.showerror("Erro Inesperado", f"Ocorreu um erro ao adicionar o atleta: {e}")
 
 # ==================================================
-# JogoFrame (Placeholder)
+# JogoFrame (Implementation Started)
 # ==================================================
 class JogoFrame(tk.Frame):
     def __init__(self, master, app):
@@ -411,14 +415,131 @@ class JogoFrame(tk.Frame):
         self.master = master
         self.app = app
         self.criar_interface()
+        self.listar_jogos() # Load games on initialization
 
     def criar_interface(self):
         container = tk.Frame(self, bg='#F5F6FA', padx=20, pady=20)
         container.pack(fill='both', expand=True)
+        container.columnconfigure(0, weight=1) # Allow treeview frame to expand
+        container.rowconfigure(2, weight=1) # Allow treeview frame to expand vertically
 
-        tk.Label(container,
-               text="Gerenciamento de Jogos (Em Desenvolvimento)",
-               font=('Helvetica', 14, 'bold'),
-               bg='#F5F6FA').pack(pady=10)
+        lbl_titulo = tk.Label(container,
+                            text="Gerenciamento de Jogos",
+                            font=('Helvetica', 14, 'bold'),
+                            bg='#F5F6FA')
+        lbl_titulo.grid(row=0, column=0, columnspan=2, pady=(0, 15))
 
-        tk.Label(container, text="Funcionalidade de Jogos ainda não implementada.", bg='#F5F6FA').pack(pady=20)
+        # --- Botão Gerar Jogos ---
+        btn_gerar = tk.Button(container,
+                            text="Gerar Confrontos",
+                            command=self.gerar_jogos,
+                            bg='#FD79A8',
+                            fg='white',
+                            font=('Helvetica', 10, 'bold'),
+                            relief='flat', padx=10, pady=5)
+        btn_gerar.grid(row=1, column=0, pady=10, sticky='w')
+        
+        # --- Botão Atualizar Lista --- (Added)
+        btn_atualizar = tk.Button(container,
+                            text="Atualizar Lista",
+                            command=self.listar_jogos,
+                            bg='#6C5CE7',
+                            fg='white',
+                            font=('Helvetica', 10, 'bold'),
+                            relief='flat', padx=10, pady=5)
+        btn_atualizar.grid(row=1, column=1, pady=10, sticky='e')
+
+        # --- Lista de Jogos ---
+        list_frame = tk.Frame(container, bg='#F5F6FA')
+        list_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky='nsew')
+        list_frame.columnconfigure(0, weight=1)
+        list_frame.rowconfigure(0, weight=1)
+
+        colunas = ('id', 'time_casa', 'placar', 'time_visitante', 'status')
+        self.tree = ttk.Treeview(list_frame, columns=colunas, show='headings', height=15)
+
+        self.tree.heading('id', text='ID')
+        self.tree.column('id', width=40, anchor='center')
+        self.tree.heading('time_casa', text='Time Casa')
+        self.tree.column('time_casa', width=150)
+        self.tree.heading('placar', text='Placar')
+        self.tree.column('placar', width=80, anchor='center')
+        self.tree.heading('time_visitante', text='Time Visitante')
+        self.tree.column('time_visitante', width=150)
+        self.tree.heading('status', text='Status')
+        self.tree.column('status', width=100, anchor='center')
+
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+
+        self.tree.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+        
+        # TODO: Add functionality to select a game and input results
+
+    def gerar_jogos(self):
+        comp_id = self.app.get_current_competicao()
+        if not comp_id:
+            messagebox.showwarning("Atenção", "Selecione uma competição primeiro na tela de Competições.")
+            return
+
+        # Get competition format
+        try:
+            comp_info = Competicao.buscar_por_id(comp_id)
+            if not comp_info or len(comp_info) < 4:
+                 messagebox.showerror("Erro", f"Não foi possível obter informações da competição {comp_id}.")
+                 return
+            formato = comp_info[3] # Assuming format is the 4th element (index 3)
+            if not formato:
+                 messagebox.showwarning("Atenção", f"A competição {comp_id} não tem um formato definido.")
+                 return
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao buscar formato da competição: {e}")
+            return
+
+        # Ask for confirmation
+        confirm = messagebox.askyesno("Confirmar Geração", 
+                                      f"Deseja gerar os confrontos para a competição ID {comp_id} (Formato: {formato})?\nIsso pode apagar jogos existentes se gerados novamente.")
+        
+        if confirm:
+            try:
+                # Optional: Delete existing scheduled games before generating new ones
+                # Jogo.deletar_agendados(comp_id) # Needs implementation in models.py
+                
+                success = Jogo.gerar_confrontos(comp_id, formato)
+                if success:
+                    messagebox.showinfo("Sucesso", "Confrontos gerados com sucesso!")
+                    self.listar_jogos() # Refresh the list
+                else:
+                    messagebox.showerror("Erro", "Falha ao gerar confrontos. Verifique o console para mais detalhes.")
+            except Exception as e:
+                messagebox.showerror("Erro Inesperado", f"Ocorreu um erro ao gerar confrontos: {e}")
+
+    def listar_jogos(self):
+        """Loads games for the currently selected competition into the treeview."""
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        comp_id = self.app.get_current_competicao()
+        if not comp_id:
+            # Optionally display a message
+            # self.tree.insert('', 'end', values=("", "Selecione uma competição", "", "", ""))
+            return
+
+        try:
+            jogos = Jogo.listar_por_competicao(comp_id)
+            if jogos:
+                for jogo_data in jogos:
+                    # jogo_data format from models: (j.id, tc.nome, tv.nome, j.placar_casa, j.placar_visitante, j.status)
+                    jogo_id, time_casa, time_visitante, p_casa, p_vis, status = jogo_data
+                    placar_str = "-" # Default for scheduled games
+                    if status == 'Concluído' and p_casa is not None and p_vis is not None:
+                        placar_str = f"{p_casa} x {p_vis}"
+                    
+                    # Treeview values: ('id', 'time_casa', 'placar', 'time_visitante', 'status')
+                    self.tree.insert('', 'end', values=(jogo_id, time_casa, placar_str, time_visitante, status))
+            # else: # Optional message
+                # self.tree.insert('', 'end', values=("", "Nenhum jogo encontrado", "", "", ""))
+        except Exception as e:
+            messagebox.showerror("Erro ao Listar Jogos", f"Não foi possível carregar os jogos: {e}")
+
