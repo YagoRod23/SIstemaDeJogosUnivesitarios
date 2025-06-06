@@ -1186,3 +1186,77 @@ class ClassificacaoFrame(tk.Frame):
             messagebox.showerror("Erro ao Carregar Classificação", f"Não foi possível calcular/carregar a classificação: {e}")
             self.tree.insert('', 'end', values=('', "Erro ao carregar", '', '', '', '', '', '', '', ''))
 
+# ==================================================
+# TelaInicial (Added)
+# ==================================================
+class TelaInicialFrame(tk.Frame):
+    def __init__(self, master, app):
+        super().__init__(master, bg='#F5F6FA')
+        self.master = master
+        self.app = app
+        self.criar_interface()
+
+    def criar_interface(self):
+        # Container principal
+        container = tk.Frame(self, bg='#F5F6FA')
+        container.pack(expand=True, fill='both', padx=20, pady=20)
+
+        # Frame do título principal
+        titulo_frame = tk.Frame(container, bg='#F5F6FA')
+        titulo_frame.pack(expand=True)
+
+        # Título principal
+        lbl_titulo_principal = tk.Label(
+            titulo_frame, 
+            text="Sistema de Gerenciamento\nde Competições Esportivas - UFCA", 
+            font=('Helvetica', 24, 'bold'),
+            bg='#F5F6FA',
+            fg='#2D3436'
+        )
+        lbl_titulo_principal.pack(pady=20)
+
+        # Logo ou ícone (opcional)
+        # Você pode adicionar um ícone ou logo aqui se quiser
+        try:
+            logo = tk.PhotoImage(file='caminho/para/seu/logo.png')  # Substitua pelo caminho real
+            lbl_logo = tk.Label(titulo_frame, image=logo, bg='#F5F6FA')
+            lbl_logo.image = logo  # Manter uma referência
+            lbl_logo.pack(pady=10)
+        except Exception:
+            pass  # Opcional, não faz nada se não encontrar a imagem
+
+        # Informações adicionais
+        lbl_info = tk.Label(
+            titulo_frame, 
+            text="Desenvolvido por Yago Rodrigues\nVersão 1.0.0",
+            font=('Helvetica', 12),
+            bg='#F5F6FA',
+            fg='#636E72'
+        )
+        lbl_info.pack(pady=20)
+
+        # Botão para iniciar
+        btn_iniciar = tk.Button(
+            titulo_frame, 
+            text="Iniciar Sistema", 
+            command=self.ir_para_competicoes,
+            bg='#0984e3', 
+            fg='white', 
+            font=('Helvetica', 14, 'bold'),
+            padx=20, 
+            pady=10
+        )
+        btn_iniciar.pack(pady=20)
+
+        # Rodapé
+        lbl_rodape = tk.Label(
+            container, 
+            text="© 2025 UFCA - Todos os direitos reservados",
+            font=('Helvetica', 10),
+            bg='#F5F6FA',
+            fg='#B2BEC3'
+        )
+        lbl_rodape.pack(side='bottom', pady=10)
+
+    def ir_para_competicoes(self):
+        self.app.mostrar_competicoes()

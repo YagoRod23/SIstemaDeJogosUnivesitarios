@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 # Import necessary frames from interface.py
 # Make sure to import the new ClassificacaoFrame
-from interface import CompeticaoFrame, TimeFrame, AtletaFrame, JogoFrame, ClassificacaoFrame, ArtilheirosFrame, RelatoriosFrame
+from interface import CompeticaoFrame, TimeFrame, AtletaFrame, JogoFrame, ClassificacaoFrame, ArtilheirosFrame, RelatoriosFrame, TelaInicialFrame
 
 class App(tk.Tk):
     def __init__(self):
@@ -98,8 +98,7 @@ class App(tk.Tk):
     # --- Methods to show specific frames ---
     def mostrar_tela_inicial(self):
         """Shows the initial/welcome screen (using CompeticaoFrame for now)."""
-        # Later, this can show a custom WelcomeFrame or DashboardFrame
-        self.mostrar_tela(CompeticaoFrame) 
+        self.mostrar_tela(TelaInicialFrame) 
 
     def mostrar_competicoes(self):
         """Shows the competition management frame."""
