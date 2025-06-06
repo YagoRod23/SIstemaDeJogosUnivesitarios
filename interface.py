@@ -822,6 +822,91 @@ class JogoFrame(tk.Frame):
             messagebox.showerror("Erro ao Listar Jogos", f"Não foi possível carregar os jogos: {e}")
 
 # ==================================================
+# ArtilheiroFrame
+# ==================================================
+class ArtilheirosFrame(tk.Frame):
+    def __init__(self, master, app):
+        super().__init__(master, bg='#FFFFFF')
+        self.master = master
+        self.app = app
+        self.criar_interface()
+        self.carregar_artilheiros()
+
+    def criar_interface(self):
+        container = tk.Frame(self, bg='#F5F6FA', padx=20, pady=20)
+        container.pack(fill='both', expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(1, weight=1)
+
+        # Título e Botão de Atualizar
+        title_frame = tk.Frame(container, bg='#F5F6FA')
+        title_frame.grid(row=0, column=0, columnspan=2, pady=(0, 15), sticky='ew')
+        title_frame.columnconfigure(0, weight=1)
+
+        lbl_titulo = tk.Label(title_frame,
+                            text="Artilheiros da Competição",
+                            font=('Helvetica', 14, 'bold'),
+                            bg='#F5F6FA')
+        lbl_titulo.pack(side='left')
+
+        btn_atualizar = tk.Button(title_frame,
+                            text="Atualizar",
+                            command=self.carregar_artilheiros,
+                            bg='#6C5CE7',
+                            fg='white',
+                            font=('Helvetica', 10, 'bold'),
+                            relief='flat', padx=10, pady=3)
+        btn_atualizar.pack(side='right')
+
+        # Frame da Lista de Artilheiros
+        list_frame = tk.Frame(container, bg='#F5F6FA')
+        list_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky='nsew')
+        list_frame.columnconfigure(0, weight=1)
+        list_frame.rowconfigure(0, weight=1)
+
+        # Definir colunas para artilheiros
+        colunas = ('pos', 'nome', 'pontos')
+        self.tree = ttk.Treeview(list_frame, columns=colunas, show='headings', height=18)
+
+        # Definir cabeçalhos e propriedades das colunas
+        self.tree.heading('pos', text='Pos')
+        self.tree.column('pos', width=50, anchor='center')
+        self.tree.heading('nome', text='Atleta')
+        self.tree.column('nome', width=250)
+        self.tree.heading('pontos', text='Pontos / Gols')
+        self.tree.column('pontos', width=100, anchor='center')
+
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+
+        self.tree.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+
+    def carregar_artilheiros(self):
+        # Limpar entradas anteriores
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        comp_id = self.app.get_current_competicao()
+        if not comp_id:
+            self.tree.insert('', 'end', values=('', "Selecione uma competição", ''))
+            return
+
+        try:
+            artilheiros = Pontuacao.get_artilheiros(comp_id)
+            if artilheiros:
+                for i, (nome, pontos) in enumerate(artilheiros, 1):
+                    self.tree.insert('', 'end', values=(i, nome, pontos))
+            else:
+                self.tree.insert('', 'end', values=('', "Nenhum artilheiro encontrado", ''))
+
+        except Exception as e:
+            messagebox.showerror("Erro ao Carregar Artilheiros", 
+                                 f"Não foi possível carregar os artilheiros: {e}")
+            self.tree.insert('', 'end', values=('', "Erro ao carregar", ''))
+
+
+# ==================================================
 # ClassificacaoFrame (Added)
 # ==================================================
 class ClassificacaoFrame(tk.Frame):
