@@ -1189,6 +1189,9 @@ class ClassificacaoFrame(tk.Frame):
 # ==================================================
 # TelaInicial (Added)
 # ==================================================
+from PIL import Image, ImageTk
+import os
+
 class TelaInicialFrame(tk.Frame):
     def __init__(self, master, app):
         super().__init__(master, bg='#F5F6FA')
@@ -1215,15 +1218,29 @@ class TelaInicialFrame(tk.Frame):
         )
         lbl_titulo_principal.pack(pady=20)
 
-        # Logo ou ícone (opcional)
-        # Você pode adicionar um ícone ou logo aqui se quiser
+        # Logo UFCA
         try:
-            logo = tk.PhotoImage(file='caminho/para/seu/logo.png')  # Substitua pelo caminho real
+            # Caminho para a imagem
+            caminho_logo = os.path.join(os.path.dirname(__file__), 'assets', 'logo_ufca.png')
+            
+            # Abrir a imagem com PIL
+            imagem_pil = Image.open(caminho_logo)
+            
+            # Redimensionar mantendo a proporção
+            largura_maxima = 250
+            proporcao = largura_maxima / imagem_pil.width
+            nova_altura = int(imagem_pil.height * proporcao)
+            imagem_redimensionada = imagem_pil.resize((largura_maxima, nova_altura), Image.LANCZOS)
+            
+            # Converter para PhotoImage do tkinter
+            logo = ImageTk.PhotoImage(imagem_redimensionada)
+            
+            # Criar label com a imagem
             lbl_logo = tk.Label(titulo_frame, image=logo, bg='#F5F6FA')
-            lbl_logo.image = logo  # Manter uma referência
+            lbl_logo.image = logo  # Manter referência
             lbl_logo.pack(pady=10)
-        except Exception:
-            pass  # Opcional, não faz nada se não encontrar a imagem
+        except Exception as e:
+            print(f"Erro ao carregar logo: {e}")
 
         # Informações adicionais
         lbl_info = tk.Label(
