@@ -905,6 +905,175 @@ class ArtilheirosFrame(tk.Frame):
                                  f"Não foi possível carregar os artilheiros: {e}")
             self.tree.insert('', 'end', values=('', "Erro ao carregar", ''))
 
+# ==================================================
+# RelatorioFrame (Added)
+# ==================================================
+
+class RelatoriosFrame(tk.Frame):
+    def __init__(self, master, app):
+        super().__init__(master, bg='#FFFFFF')
+        self.master = master
+        self.app = app
+        self.criar_interface()
+
+    def criar_interface(self):
+        container = tk.Frame(self, bg='#F5F6FA', padx=20, pady=20)
+        container.pack(fill='both', expand=True)
+        container.columnconfigure(0, weight=1)
+
+        # Título
+        lbl_titulo = tk.Label(container,
+                            text="Relatórios da Competição",
+                            font=('Helvetica', 14, 'bold'),
+                            bg='#F5F6FA')
+        lbl_titulo.grid(row=0, column=0, columnspan=2, pady=(0, 20))
+
+        # Frame de Botões de Relatórios
+        btn_frame = tk.Frame(container, bg='#F5F6FA')
+        btn_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky='ew')
+
+        # Botões de Relatórios
+        relatorios = [
+            ("Relatório Geral", self.gerar_relatorio_geral),
+            ("Desempenho dos Times", self.gerar_relatorio_times),
+            ("Histórico de Jogos", self.gerar_relatorio_jogos),
+            ("Estatísticas de Atletas", self.gerar_relatorio_atletas)
+        ]
+
+        for i, (texto, comando) in enumerate(relatorios):
+            btn = tk.Button(btn_frame, 
+                            text=texto, 
+                            command=comando,
+                            bg='#0984e3', 
+                            fg='white', 
+                            font=('Helvetica', 10, 'bold'), 
+                            relief='flat', 
+                            padx=15, 
+                            pady=10)
+            btn.grid(row=i//2, column=i%2, padx=10, pady=10, sticky='ew')
+
+        # Área de Exibição de Relatório
+        self.text_relatorio = tk.Text(container, 
+                                      height=20, 
+                                      width=80, 
+                                      font=('Courier', 10), 
+                                      wrap=tk.WORD)
+        self.text_relatorio.grid(row=2, column=0, columnspan=2, pady=10, padx=10, sticky='nsew')
+        
+        # Scrollbar para o Text
+        scrollbar = ttk.Scrollbar(container, command=self.text_relatorio.yview)
+        scrollbar.grid(row=2, column=2, sticky='ns')
+        self.text_relatorio.config(yscrollcommand=scrollbar.set)
+
+    def validar_competicao(self):
+        comp_id = self.app.get_current_competicao()
+        if not comp_id:
+            messagebox.showwarning("Atenção", "Selecione uma competição primeiro.")
+            return None
+        return comp_id
+
+    def gerar_relatorio_geral(self):
+        comp_id = self.validar_competicao()
+        if not comp_id:
+            return
+
+        try:
+            comp_info = Competicao.buscar_por_id(comp_id)
+            times = Time.carregar_por_competicao(comp_id)
+            jogos = Jogo.listar_por_competicao(comp_id)
+
+            relatorio = f"""
+RELATÓRIO GERAL DA COMPETIÇÃO
+=============================
+Nome: {comp_info[1]}
+Modalidade: {comp_info[2]}
+Formato de Disputa: {comp_info[3]}
+
+Estatísticas Gerais:
+Total de Times: {len(times)}
+Total de Jogos: {len(jogos)}
+Jogos Concluídos: {len([j for j in jogos if j[5] == 'Concluído'])}
+Jogos Pendentes: {len([j for j in jogos if j[5] != 'Concluído'])}
+"""
+            self.text_relatorio.delete(1.0, tk.END)
+            self.text_relatorio.insert(tk.END, relatorio)
+
+        except Exception as e:
+            messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
+
+    def gerar_relatorio_times(self):
+        comp_id = self.validar_competicao()
+        if not comp_id:
+            return
+
+        try:
+            tabela_classificacao = Competicao.calcular_classificacao(comp_id)
+            
+            relatorio = "DESEMPENHO DOS TIMES\n"
+            relatorio += "====================\n\n"
+            
+            for time in tabela_classificacao:
+                relatorio += f"Time: {time['nome']}\n"
+                relatorio += f"Pontos: {time['P']} | Jogos: {time['J']}\n"
+                relatorio += f"Vitórias: {time['V']} | Empates: {time['E']} | Derrotas: {time['D']}\n"
+                relatorio += f"Gols Pró: {time['GP']} | Gols Contra: {time['GC']} | Saldo de Gols: {time['SG']}\n"
+                relatorio += "-" * 40 + "\n\n"
+
+            self.text_relatorio.delete(1.0, tk.END)
+            self.text_relatorio.insert(tk.END, relatorio)
+
+        except Exception as e:
+            messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
+
+    def gerar_relatorio_jogos(self):
+        comp_id = self.validar_competicao()
+        if not comp_id:
+            return
+
+        try:
+            jogos = Jogo.listar_por_competicao(comp_id)
+            
+            relatorio = "HISTÓRICO DE JOGOS\n"
+            relatorio += "==================\n\n"
+            
+            for jogo in jogos:
+                jogo_id, time_casa, time_visitante, p_casa, p_vis, status = jogo
+                placar = f"{p_casa} x {p_vis}" if status == 'Concluído' else "Não realizado"
+                
+                relatorio += f"Jogo {jogo_id}: {time_casa} x {time_visitante}\n"
+                relatorio += f"Placar: {placar}\n"
+                relatorio += f"Status: {status}\n"
+                relatorio += "-" * 40 + "\n\n"
+
+            self.text_relatorio.delete(1.0, tk.END)
+            self.text_relatorio.insert(tk.END, relatorio)
+
+        except Exception as e:
+            messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
+
+    def gerar_relatorio_atletas(self):
+        comp_id = self.validar_competicao()
+        if not comp_id:
+            return
+
+        try:
+            artilheiros = Pontuacao.get_artilheiros(comp_id)
+            
+            relatorio = "ESTATÍSTICAS DE ATLETAS\n"
+            relatorio += "=======================\n\n"
+            
+            relatorio += "TOP 20 ARTILHEIROS:\n"
+            for i, (nome, pontos) in enumerate(artilheiros, 1):
+                relatorio += f"{i}. {nome}: {pontos} pontos\n"
+
+            # Adicionar mais estatísticas conforme necessário
+            
+            self.text_relatorio.delete(1.0, tk.END)
+            self.text_relatorio.insert(tk.END, relatorio)
+
+        except Exception as e:
+            messagebox.showerror("Erro", f"Não foi possível gerar o relatório: {e}")
+
 
 # ==================================================
 # ClassificacaoFrame (Added)

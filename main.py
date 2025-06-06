@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 # Import necessary frames from interface.py
 # Make sure to import the new ClassificacaoFrame
-from interface import CompeticaoFrame, TimeFrame, AtletaFrame, JogoFrame, ClassificacaoFrame, ArtilheirosFrame
+from interface import CompeticaoFrame, TimeFrame, AtletaFrame, JogoFrame, ClassificacaoFrame, ArtilheirosFrame, RelatoriosFrame
 
 class App(tk.Tk):
     def __init__(self):
@@ -38,6 +38,9 @@ class App(tk.Tk):
         """Shows the top scorers frame."""
         self.mostrar_tela(ArtilheirosFrame)
 
+    def mostrar_relatorios(self):
+        """Shows the reports frame."""
+        self.mostrar_tela(RelatoriosFrame)
 
     def mostrar_tela(self, frame_class):
         """Clears the container and displays the specified frame class."""
@@ -79,7 +82,8 @@ class App(tk.Tk):
             ("⚽ Times", self.mostrar_times),
             ("👤 Atletas", self.mostrar_atletas),
             ("📅 Jogos", self.mostrar_jogos),
-            ("📊 Classificação", self.mostrar_classificacao), 
+            ("📊 Classificação", self.mostrar_classificacao),
+            ("📊 Relatórios", self.mostrar_relatorios),
             ("🏆 Artilheiros", self.mostrar_artilheiros),# New Button
             # Add other buttons as needed
             ("🚪 Sair", self.quit) # Use self.quit or self.destroy
