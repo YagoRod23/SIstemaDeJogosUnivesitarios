@@ -1,6 +1,7 @@
-# models_com_sumula.py
+# models_com_classificacao.py
 import sqlite3
-import random # Needed for Eliminação Direta
+import random
+from collections import defaultdict
 from database import criar_conexao
 
 # Define default points if not imported from config
@@ -57,6 +58,87 @@ class Competicao:
             finally:
                 conn.close()
         return competicao_info
+
+    @staticmethod
+    def calcular_classificacao(competicao_id):
+        """Calcula a tabela de classificação para uma competição."""
+        conn = criar_conexao()
+        if not conn:
+            return []
+
+        try:
+            # 1. Get all teams in the competition
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, nome FROM time WHERE competicao_id = ?", (competicao_id,))
+            times_data = cursor.fetchall()
+            if not times_data:
+                return [] # No teams, no classification
+
+            # Initialize stats for each team
+            classificacao = {time_id: {
+                'nome': nome,
+                'P': 0, 'J': 0, 'V': 0, 'E': 0, 'D': 0,
+                'GP': 0, 'GC': 0, 'SG': 0
+            } for time_id, nome in times_data}
+
+            # 2. Get all completed games for the competition
+            cursor.execute("""
+                SELECT time_casa_id, time_visitante_id, placar_casa, placar_visitante
+                FROM jogo
+                WHERE competicao_id = ? AND status = 'Concluído'
+            """, (competicao_id,))
+            jogos_concluidos = cursor.fetchall()
+
+            # 3. Process each completed game
+            for casa_id, vis_id, p_casa, p_vis in jogos_concluidos:
+                # Ensure scores are not None
+                if p_casa is None or p_vis is None:
+                    continue 
+
+                # Update stats for home team
+                if casa_id in classificacao:
+                    classificacao[casa_id]['J'] += 1
+                    classificacao[casa_id]['GP'] += p_casa
+                    classificacao[casa_id]['GC'] += p_vis
+                    classificacao[casa_id]['SG'] += (p_casa - p_vis)
+                    if p_casa > p_vis:
+                        classificacao[casa_id]['V'] += 1
+                        classificacao[casa_id]['P'] += PONTOS_VITORIA
+                    elif p_casa == p_vis:
+                        classificacao[casa_id]['E'] += 1
+                        classificacao[casa_id]['P'] += PONTOS_EMPATE
+                    else:
+                        classificacao[casa_id]['D'] += 1
+                        classificacao[casa_id]['P'] += PONTOS_DERROTA
+
+                # Update stats for away team
+                if vis_id in classificacao:
+                    classificacao[vis_id]['J'] += 1
+                    classificacao[vis_id]['GP'] += p_vis
+                    classificacao[vis_id]['GC'] += p_casa
+                    classificacao[vis_id]['SG'] += (p_vis - p_casa)
+                    if p_vis > p_casa:
+                        classificacao[vis_id]['V'] += 1
+                        classificacao[vis_id]['P'] += PONTOS_VITORIA
+                    elif p_vis == p_casa:
+                        classificacao[vis_id]['E'] += 1
+                        classificacao[vis_id]['P'] += PONTOS_EMPATE
+                    else:
+                        classificacao[vis_id]['D'] += 1
+                        classificacao[vis_id]['P'] += PONTOS_DERROTA
+
+            # 4. Convert to list and sort
+            tabela_final = list(classificacao.values())
+            # Sort by: Points (desc), Wins (desc), Goal Diff (desc), Goals For (desc), Name (asc)
+            tabela_final.sort(key=lambda x: (x['P'], x['V'], x['SG'], x['GP'], x['nome']), reverse=True)
+
+            return tabela_final
+
+        except sqlite3.Error as e:
+            print(f"Erro ao calcular classificação: {e}")
+            return []
+        finally:
+            conn.close()
 
 # ==================================================
 # Time Model
@@ -158,7 +240,6 @@ class Jogo:
 
     @staticmethod
     def buscar_detalhes(jogo_id):
-        """Busca detalhes de um jogo, incluindo nomes dos times."""
         conn = criar_conexao()
         jogo_info = None
         if conn:
@@ -181,7 +262,6 @@ class Jogo:
                 print(f"Erro ao buscar detalhes do jogo {jogo_id}: {e}")
             finally:
                 conn.close()
-        # Returns (id, comp_id, tc_id, tv_id, p_casa, p_vis, status, n_casa, n_vis) or None
         return jogo_info 
 
     @staticmethod
@@ -195,7 +275,6 @@ class Jogo:
                     (placar_casa, placar_visitante, jogo_id)
                 )
                 conn.commit()
-                # Check if update was successful (optional)
                 return cursor.rowcount > 0 
             except sqlite3.Error as e:
                 print(f"Erro ao finalizar jogo {jogo_id}: {e}")
@@ -223,7 +302,6 @@ class Jogo:
                 print(f"Erro ao listar jogos da competição {competicao_id}: {e}")
             finally:
                 conn.close()
-        # Returns list of (id, nome_casa, nome_visitante, p_casa, p_vis, status)
         return jogos
 
     @staticmethod
@@ -235,48 +313,19 @@ class Jogo:
                 print("Não há times suficientes para gerar confrontos.")
                 return False
 
-            # Optional: Delete previously scheduled games for this competition
-            # conn_del = criar_conexao()
-            # if conn_del:
-            #     try:
-            #         cursor_del = conn_del.cursor()
-            #         cursor_del.execute("DELETE FROM jogo WHERE competicao_id = ? AND status = 'Agendado'", (competicao_id,))
-            #         conn_del.commit()
-            #         print(f"Jogos agendados anteriores da competição {competicao_id} removidos.")
-            #     except sqlite3.Error as e_del:
-            #         print(f"Erro ao deletar jogos agendados: {e_del}")
-            #     finally:
-            #         conn_del.close()
-
             confrontos = []
             if formato == "Torneio de pontos corridos":
-                # Ida e volta
                 for i in range(len(times)):
                     for j in range(len(times)):
                         if i != j:
                             confrontos.append((times[i], times[j]))
-                # Apenas ida
-                # for i in range(len(times)):
-                #     for j in range(i + 1, len(times)):
-                #         # Decide home/away randomly or alternate
-                #         if random.choice([True, False]):
-                #             confrontos.append((times[i], times[j]))
-                #         else:
-                #             confrontos.append((times[j], times[i]))
             elif formato == "Eliminação Direta":
                 if len(times) % 2 != 0:
                     print("Número ímpar de times não suportado para Eliminação Direta simples.")
-                    # Could add a 'bye' logic here if needed
                     return False
                 random.shuffle(times)
                 for i in range(0, len(times), 2):
                      confrontos.append((times[i], times[i+1]))
-            # Add other formats here (e.g., Grupos + Mata-Mata)
-            # elif formato == "Fase de Grupos + Playoffs":
-            #     # Logic for group stage generation
-            #     # Logic for playoff generation based on group results (more complex)
-            #     print("Geração para Fase de Grupos + Playoffs ainda não implementada.")
-            #     return False
             else:
                 print(f"Formato de disputa '{formato}' não suportado para geração automática.")
                 return False
@@ -297,12 +346,10 @@ class Jogo:
 class Pontuacao:
     @staticmethod
     def registrar_pontos(atleta_id, jogo_id, pontos):
-        """Registra um evento de pontuação para um atleta em um jogo."""
         conn = criar_conexao()
         if conn:
             try:
                 cursor = conn.cursor()
-                # Simple insert for each scoring event
                 cursor.execute(
                     "INSERT INTO pontuacao (atleta_id, jogo_id, pontos) VALUES (?, ?, ?)",
                     (atleta_id, jogo_id, pontos)
@@ -318,14 +365,11 @@ class Pontuacao:
 
     @staticmethod
     def listar_por_jogo(jogo_id):
-        """Lista a pontuação total por atleta para um jogo específico."""
         conn = criar_conexao()
         pontuacoes = []
         if conn:
             try:
                 cursor = conn.cursor()
-                # Query to sum points per athlete for the given game
-                # Also joins to get athlete and team names
                 query = """
                     SELECT 
                         p.atleta_id, 
@@ -338,7 +382,7 @@ class Pontuacao:
                     JOIN time t ON a.time_id = t.id
                     WHERE p.jogo_id = ?
                     GROUP BY p.atleta_id, a.nome, t.id, t.nome
-                    ORDER BY t.id, total_pontos DESC -- Order by team, then points
+                    ORDER BY t.id, total_pontos DESC
                 """
                 cursor.execute(query, (jogo_id,))
                 pontuacoes = cursor.fetchall()
@@ -346,12 +390,10 @@ class Pontuacao:
                 print(f"Erro ao listar pontuações do jogo {jogo_id}: {e}")
             finally:
                 conn.close()
-        # Returns list of (atleta_id, nome_atleta, time_id, nome_time, total_pontos)
         return pontuacoes
 
     @staticmethod
     def get_artilheiros(competicao_id):
-        """Calcula os artilheiros/pontuadores de uma competição inteira."""
         conn = criar_conexao()
         artilheiros = []
         if conn:
@@ -366,9 +408,9 @@ class Pontuacao:
                     JOIN jogo j ON p.jogo_id = j.id
                     WHERE j.competicao_id = ?
                     GROUP BY a.id, a.nome
-                    HAVING SUM(p.pontos) > 0 -- Only show players who scored
+                    HAVING SUM(p.pontos) > 0
                     ORDER BY total_pontos DESC
-                    LIMIT 20 -- Limit the list size
+                    LIMIT 20
                 """
                 cursor.execute(query, (competicao_id,))
                 artilheiros = cursor.fetchall()
@@ -376,6 +418,5 @@ class Pontuacao:
                 print(f"Erro ao buscar artilheiros da competição {competicao_id}: {e}")
             finally:
                 conn.close()
-        # Returns list of (nome_atleta, total_pontos)
         return artilheiros
 

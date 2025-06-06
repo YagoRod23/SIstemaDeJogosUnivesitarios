@@ -1,69 +1,80 @@
-# main_corrigido.py
+# main_corrigido_v2.py
 import tkinter as tk
+from tkinter import ttk, messagebox
 # Import necessary frames from interface.py
-from interface import CompeticaoFrame, TimeFrame, AtletaFrame, JogoFrame
+# Make sure to import the new ClassificacaoFrame
+from interface import CompeticaoFrame, TimeFrame, AtletaFrame, JogoFrame, ClassificacaoFrame
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Gestão Esportiva")
         self.geometry("1024x768")
-        self.current_competicao = None # Initialize competition ID tracker
+        self.current_competicao = None # Initialize current competition ID
 
-        # --- UI Setup ---
-        # Sidebar Frame
-        self.sidebar = tk.Frame(self, bg='#2D3436', width=200, relief='sunken', borderwidth=0)
-        self.sidebar.pack(side='left', fill='y', padx=0, pady=0)
+        # Configure sidebar
+        self.sidebar = tk.Frame(self, bg='#2D3436', width=200)
+        self.sidebar.pack(side='left', fill='y')
 
-        # Main Content Container Frame
-        self.container = tk.Frame(self, bg='white') # Added background color for clarity
-        self.container.pack(side='right', fill='both', expand=True, padx=10, pady=10) # Added padding
+        # Main container
+        self.container = tk.Frame(self)
+        self.container.pack(side='right', fill='both', expand=True)
 
-        # --- Initialization ---
-        self.criar_menu() # Create sidebar buttons
+        self.criar_menu()
         self.mostrar_tela_inicial() # Show the initial frame
 
     def get_current_competicao(self):
         """Returns the ID of the currently selected competition."""
         return self.current_competicao
 
-    def set_current_competicao(self, comp_id):
+    def set_current_competicao(self, competicao_id):
         """Sets the ID of the currently selected competition."""
-        # Optional: Add validation or logging here if needed
-        self.current_competicao = comp_id
-        print(f"Competição atual definida para: {self.current_competicao}") # For debugging
+        self.current_competicao = competicao_id
+        print(f"Competição atual definida para: {self.current_competicao}") # Debug print
+        # Optionally, refresh the current view if needed
+        # self.refresh_current_view()
 
     def mostrar_tela(self, frame_class):
-        """Clears the main container and displays the requested frame."""
+        """Clears the container and displays the specified frame class."""
         # Destroy existing widgets in the container
         for widget in self.container.winfo_children():
             widget.destroy()
-
-        # Create and pack the new frame, passing the container as master and self (the App instance) as 'app'
-        # This allows frames to access App methods/attributes via self.app
-        nova_tela = frame_class(self.container, app=self) 
-        nova_tela.pack(fill='both', expand=True)
+        
+        # Create and pack the new frame, passing the app instance
+        # Ensure the frame class accepts 'app' as an argument in __init__
+        try:
+            nova_tela = frame_class(self.container, app=self) 
+            nova_tela.pack(fill='both', expand=True)
+        except TypeError as e:
+            if "unexpected keyword argument 'app'" in str(e):
+                messagebox.showerror("Erro de Programação", 
+                                     f"A classe {frame_class.__name__} precisa aceitar 'app' no seu __init__.")
+            else:
+                messagebox.showerror("Erro ao Mudar Tela", f"Erro inesperado: {e}")
+        except Exception as e:
+             messagebox.showerror("Erro ao Mudar Tela", f"Erro inesperado: {e}")
 
     def criar_menu(self):
-        """Creates the navigation buttons in the sidebar."""
-        # Button style configuration
+        """Creates the sidebar menu buttons."""
+        # Button configuration (Corrected: removed invalid backslashes)
         button_config = {
-            'bg': '#4a586a',
+            'bg': '#636E72',
             'fg': 'white',
+            'font': ('Helvetica', 10, 'bold'),
             'relief': 'flat',
-            'anchor': 'w', # Align text to the left
-            'padx': 10,
-            'pady': 8,
-            'font': ('Helvetica', 10)
+            'anchor': 'w',
+            'padx': 15,
+            'pady': 10
         }
 
-        # Define buttons: (Text, Command to execute on click)
+        # Define buttons: (Text, Command)
         botoes = [
             ("🏠 Tela Inicial", self.mostrar_tela_inicial),
-            ("🏆 Competições", self.mostrar_competicoes), # Changed from 'Nova Competição'
+            ("🏆 Competições", self.mostrar_competicoes),
             ("⚽ Times", self.mostrar_times),
             ("👤 Atletas", self.mostrar_atletas),
             ("📅 Jogos", self.mostrar_jogos),
+            ("📊 Classificação", self.mostrar_classificacao), # New Button
             # Add other buttons as needed
             ("🚪 Sair", self.quit) # Use self.quit or self.destroy
         ]
@@ -77,7 +88,8 @@ class App(tk.Tk):
     # --- Methods to show specific frames ---
     def mostrar_tela_inicial(self):
         """Shows the initial/welcome screen (using CompeticaoFrame for now)."""
-        self.mostrar_tela(CompeticaoFrame)
+        # Later, this can show a custom WelcomeFrame or DashboardFrame
+        self.mostrar_tela(CompeticaoFrame) 
 
     def mostrar_competicoes(self):
         """Shows the competition management frame."""
@@ -95,7 +107,12 @@ class App(tk.Tk):
         """Shows the game management frame."""
         self.mostrar_tela(JogoFrame)
 
+    def mostrar_classificacao(self): # New Method
+        """Shows the classification table frame."""
+        self.mostrar_tela(ClassificacaoFrame)
+
 # --- Main execution block ---
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+

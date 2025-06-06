@@ -1,26 +1,26 @@
-# interface_corrigido_final.py
+# interface_completo_corrigido.py
 import tkinter as tk
 from tkinter import ttk, messagebox
-# Assuming models.py contains Competicao, Time, Atleta, Jogo classes with necessary methods
-from models import Competicao, Time, Atleta, Jogo, Pontuacao # Added Pontuacao
+# Assuming models.py contains Competicao, Time, Atleta, Jogo, Pontuacao classes
+from models import Competicao, Time, Atleta, Jogo, Pontuacao 
 from config import MODALIDADES, FORMATOS_DISPUTA
 
 # ==================================================
-# SumulaWindow (Nova Janela Toplevel)
+# SumulaWindow (Toplevel for Game Details)
 # ==================================================
 class SumulaWindow(tk.Toplevel):
     def __init__(self, master, app, jogo_id):
         super().__init__(master)
-        self.master = master # Should be the main App window
+        self.master = master # The JogoFrame instance
         self.app = app
         self.jogo_id = jogo_id
         self.atletas_casa = []
         self.atletas_visitante = []
 
         self.title(f"Súmula - Jogo ID: {self.jogo_id}")
-        self.geometry("700x550") # Adjusted size
-        self.transient(master) # Keep window on top of the main app
-        self.grab_set() # Modal behavior
+        self.geometry("700x550")
+        self.transient(master)
+        self.grab_set()
 
         self.criar_interface()
         self.carregar_dados_jogo()
@@ -30,9 +30,9 @@ class SumulaWindow(tk.Toplevel):
         main_frame.pack(fill='both', expand=True)
         main_frame.columnconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(2, weight=1) # Allow lists to expand
+        main_frame.rowconfigure(2, weight=1)
 
-        # --- Informações do Jogo e Placar ---
+        # --- Game Info and Score ---
         info_frame = tk.Frame(main_frame)
         info_frame.grid(row=0, column=0, columnspan=2, pady=(0, 15), sticky='ew')
         info_frame.columnconfigure(1, weight=1)
@@ -49,7 +49,7 @@ class SumulaWindow(tk.Toplevel):
         self.entry_placar_visitante = tk.Spinbox(info_frame, from_=0, to=999, width=5)
         self.entry_placar_visitante.grid(row=1, column=3, padx=5, sticky='w')
 
-        # --- Registro de Pontos/Gols ---
+        # --- Point/Goal Registration ---
         pontos_frame = tk.LabelFrame(main_frame, text="Registrar Pontos/Gols", padx=10, pady=10)
         pontos_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky='ew')
         pontos_frame.columnconfigure(1, weight=1)
@@ -59,20 +59,20 @@ class SumulaWindow(tk.Toplevel):
         self.cb_atleta_pontuador.grid(row=0, column=1, padx=5, sticky='ew')
 
         tk.Label(pontos_frame, text="Pontos:").grid(row=0, column=2, padx=5, sticky='w')
-        self.entry_pontos = tk.Spinbox(pontos_frame, from_=1, to=10, width=5) # Adjust range as needed
+        self.entry_pontos = tk.Spinbox(pontos_frame, from_=1, to=10, width=5)
         self.entry_pontos.grid(row=0, column=3, padx=5)
 
         btn_registrar_ponto = tk.Button(pontos_frame, text="Registrar", command=self.registrar_ponto, bg='#00B894', fg='white', relief='flat')
         btn_registrar_ponto.grid(row=0, column=4, padx=10)
 
-        # --- Listas de Atletas e Pontuações ---
+        # --- Athlete and Score Lists ---
         listas_frame = tk.Frame(main_frame)
         listas_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky='nsew')
         listas_frame.columnconfigure(0, weight=1)
         listas_frame.columnconfigure(1, weight=1)
-        listas_frame.rowconfigure(0, weight=1) # Changed row index to 0
+        listas_frame.rowconfigure(0, weight=1)
 
-        # Lista Casa
+        # Home Team List
         frame_casa = tk.LabelFrame(listas_frame, text="Time Casa - Pontuadores", padx=5, pady=5)
         frame_casa.grid(row=0, column=0, padx=(0, 5), sticky='nsew')
         frame_casa.rowconfigure(0, weight=1)
@@ -87,7 +87,7 @@ class SumulaWindow(tk.Toplevel):
         self.tree_casa.configure(yscrollcommand=sc_casa.set)
         sc_casa.grid(row=0, column=1, sticky='ns')
 
-        # Lista Visitante
+        # Away Team List
         frame_vis = tk.LabelFrame(listas_frame, text="Time Visitante - Pontuadores", padx=5, pady=5)
         frame_vis.grid(row=0, column=1, padx=(5, 0), sticky='nsew')
         frame_vis.rowconfigure(0, weight=1)
@@ -102,7 +102,7 @@ class SumulaWindow(tk.Toplevel):
         self.tree_vis.configure(yscrollcommand=sc_vis.set)
         sc_vis.grid(row=0, column=1, sticky='ns')
 
-        # --- Botões Finais ---
+        # --- Final Buttons ---
         botoes_frame = tk.Frame(main_frame)
         botoes_frame.grid(row=3, column=0, columnspan=2, pady=(15, 0))
 
@@ -129,9 +129,10 @@ class SumulaWindow(tk.Toplevel):
                 self.entry_placar_casa.insert(0, str(p_casa if p_casa is not None else 0))
                 self.entry_placar_visitante.delete(0, 'end')
                 self.entry_placar_visitante.insert(0, str(p_vis if p_vis is not None else 0))
+                # Optionally disable score entry for finished games
                 # self.entry_placar_casa.config(state='disabled')
                 # self.entry_placar_visitante.config(state='disabled')
-            else: # Ensure score starts at 0 for non-finished games
+            else:
                 self.entry_placar_casa.delete(0, 'end')
                 self.entry_placar_casa.insert(0, '0')
                 self.entry_placar_visitante.delete(0, 'end')
@@ -150,13 +151,12 @@ class SumulaWindow(tk.Toplevel):
             if lista_formatada:
                 self.cb_atleta_pontuador.current(0)
             else:
-                 self.cb_atleta_pontuador.set('') # Clear if no athletes
+                 self.cb_atleta_pontuador.set('')
 
             self.carregar_pontuacoes_existentes()
 
         except Exception as e:
             messagebox.showerror("Erro ao Carregar Jogo", f"Não foi possível carregar dados do jogo: {e}", parent=self)
-            # self.destroy()
 
     def carregar_pontuacoes_existentes(self):
         for item in self.tree_casa.get_children(): self.tree_casa.delete(item)
@@ -230,8 +230,7 @@ class SumulaWindow(tk.Toplevel):
             try:
                 if Jogo.finalizar_jogo(self.jogo_id, placar_casa, placar_visitante):
                     messagebox.showinfo("Sucesso", "Jogo finalizado e placar salvo!", parent=self)
-                    # Attempt to find the JogoFrame instance and refresh it
-                    # This assumes JogoFrame is the direct master of SumulaWindow
+                    # Refresh the game list in the parent JogoFrame
                     if hasattr(self.master, 'listar_jogos'): 
                         self.master.listar_jogos()
                     self.destroy()
@@ -322,7 +321,7 @@ class CompeticaoFrame(tk.Frame):
                         if val.startswith(f"{current_comp_id} - "):
                             self.cb_competicao.set(val)
                             break
-                else: # If no competition is selected in app, clear combobox
+                else:
                     self.cb_competicao.set('')
             else:
                 self.cb_competicao['values'] = []
@@ -499,8 +498,8 @@ class AtletaFrame(tk.Frame):
         self.current_time_id = None
         self.widgets = {}
         self.criar_interface()
-        # Don't load times initially, wait for competition selection
-        # self.atualizar_times() 
+        # Call atualizar_times initially to set the combobox state
+        self.atualizar_times() 
 
     def criar_interface(self):
         container = tk.Frame(self, bg='#F5F6FA', padx=20, pady=20)
@@ -519,7 +518,7 @@ class AtletaFrame(tk.Frame):
         lbl_time.grid(row=1, column=0, padx=5, pady=5, sticky='w')
 
         self.cb_time = ttk.Combobox(container, state='readonly', width=35, font=('Helvetica', 10))
-        # Update times when dropdown is clicked (postcommand)
+        # Use postcommand to refresh list just before dropdown
         self.cb_time.config(postcommand=self.atualizar_times) 
         self.cb_time.grid(row=1, column=1, columnspan=4, padx=5, pady=5, sticky='ew')
         self.cb_time.bind('<<ComboboxSelected>>', self.selecionar_time)
@@ -565,13 +564,14 @@ class AtletaFrame(tk.Frame):
         scrollbar.grid(row=0, column=1, sticky='ns')
 
     def atualizar_times(self):
-        """Called by postcommand to refresh the team list for the current competition."""
         comp_id = self.app.get_current_competicao()
-        current_selection = self.cb_time.get() # Remember selection before clearing
-        self.cb_time['values'] = [] # Clear old values
-        self.cb_time.set('') # Clear current display
-        self.limpar_lista_atletas() # Clear athlete list when teams change
-        self.current_time_id = None # Reset selected team ID
+        current_selection = self.cb_time.get()
+        # Clear values before fetching new ones
+        self.cb_time['values'] = [] 
+        self.cb_time.set('')
+        # Don't clear athlete list here, wait for selection
+        # self.limpar_lista_atletas()
+        # self.current_time_id = None
 
         if comp_id:
             try:
@@ -579,23 +579,25 @@ class AtletaFrame(tk.Frame):
                 if times:
                     valores = [f"{t[0]} - {t[1]}" for t in times]
                     self.cb_time['values'] = valores
-                    # Try to restore previous selection if it's still valid
+                    # Restore selection if it's still valid
                     if current_selection in valores:
                         self.cb_time.set(current_selection)
-                        # If restoring selection, also restore team ID and load athletes
-                        try:
-                            self.current_time_id = int(current_selection.split(" - ")[0])
-                            self.carregar_atletas()
-                        except (ValueError, IndexError):
-                            self.current_time_id = None # Handle potential error
+                        # No need to load athletes here, wait for bind event
+                    # else: # If previous selection is gone, clear athlete list
+                    #     self.limpar_lista_atletas()
+                    #     self.current_time_id = None
+                # else: # No teams found
+                #     self.limpar_lista_atletas()
+                #     self.current_time_id = None
             except Exception as e:
                 messagebox.showerror("Erro ao Carregar Times", f"Não foi possível carregar times: {e}")
                 self.cb_time.set("Erro ao carregar times")
         else:
              self.cb_time.set("Selecione Competição")
+             self.limpar_lista_atletas()
+             self.current_time_id = None
 
     def selecionar_time(self, event=None):
-        """Called when a team is selected from the combobox."""
         selecionado = self.cb_time.get()
         if selecionado and " - " in selecionado:
             try:
@@ -646,13 +648,15 @@ class AtletaFrame(tk.Frame):
             if Atleta.criar(nome=nome, numero=numero, time_id=self.current_time_id):
                 messagebox.showinfo("Sucesso", f"Atleta '{nome}' adicionado ao time!")
                 self.entry_nome.delete(0, 'end')
-                self.entry_numero.delete(0, 'end')
-                self.entry_numero.insert(0, '0')
-                self.carregar_atletas()
+                # Correct way to reset Spinbox
+                self.entry_numero.delete(0, 'end') 
+                self.entry_numero.insert(0, '0')  
+                self.carregar_atletas() # Refresh list
             else:
                 messagebox.showerror("Erro", f"Não foi possível adicionar o atleta '{nome}'.")
         except Exception as e:
-            print(f"Erro detalhado ao adicionar atleta: {e}")
+            # Log the full error for debugging
+            print(f"Erro detalhado ao adicionar atleta: {e}") 
             messagebox.showerror("Erro Inesperado", f"Ocorreu um erro ao adicionar o atleta: {e}")
 
 # ==================================================
@@ -670,7 +674,7 @@ class JogoFrame(tk.Frame):
         container = tk.Frame(self, bg='#F5F6FA', padx=20, pady=20)
         container.pack(fill='both', expand=True)
         container.columnconfigure(0, weight=1)
-        container.rowconfigure(2, weight=1) # Allow treeview frame to expand vertically
+        container.rowconfigure(2, weight=1)
 
         lbl_titulo = tk.Label(container,
                             text="Gerenciamento de Jogos",
@@ -752,8 +756,8 @@ class JogoFrame(tk.Frame):
         try:
             jogo_values = self.tree.item(selected_item[0], 'values')
             jogo_id = int(jogo_values[0])
-            # Pass JogoFrame instance as master to SumulaWindow
-            SumulaWindow(self, self.app, jogo_id) 
+            # Open SumulaWindow as a child of the main App window (self.app)
+            SumulaWindow(self.app, self.app, jogo_id) 
         except (IndexError, ValueError):
             messagebox.showerror("Erro", "Não foi possível obter o ID do jogo selecionado.")
         except Exception as e:
@@ -799,6 +803,8 @@ class JogoFrame(tk.Frame):
 
         comp_id = self.app.get_current_competicao()
         if not comp_id:
+            # Optionally display a message in the treeview
+            # self.tree.insert('', 'end', values=('', 'Selecione uma competição', '', '', ''))
             return
 
         try:
@@ -810,5 +816,119 @@ class JogoFrame(tk.Frame):
                     if status == 'Concluído' and p_casa is not None and p_vis is not None:
                         placar_str = f"{p_casa} x {p_vis}"
                     self.tree.insert('', 'end', values=(jogo_id, time_casa, placar_str, time_visitante, status))
+            # else: # Optionally display message if no games
+                # self.tree.insert('', 'end', values=('', 'Nenhum jogo encontrado', '', '', ''))
         except Exception as e:
             messagebox.showerror("Erro ao Listar Jogos", f"Não foi possível carregar os jogos: {e}")
+
+# ==================================================
+# ClassificacaoFrame (Added)
+# ==================================================
+class ClassificacaoFrame(tk.Frame):
+    def __init__(self, master, app):
+        super().__init__(master, bg='#FFFFFF')
+        self.master = master
+        self.app = app
+        self.criar_interface()
+        self.carregar_classificacao()
+
+    def criar_interface(self):
+        container = tk.Frame(self, bg='#F5F6FA', padx=20, pady=20)
+        container.pack(fill='both', expand=True)
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(1, weight=1) # Allow treeview frame to expand
+
+        # Title and Refresh Button
+        title_frame = tk.Frame(container, bg='#F5F6FA')
+        title_frame.grid(row=0, column=0, columnspan=2, pady=(0, 15), sticky='ew')
+        title_frame.columnconfigure(0, weight=1)
+
+        lbl_titulo = tk.Label(title_frame,
+                            text="Tabela de Classificação",
+                            font=('Helvetica', 14, 'bold'),
+                            bg='#F5F6FA')
+        lbl_titulo.pack(side='left')
+
+        btn_atualizar = tk.Button(title_frame,
+                            text="Atualizar",
+                            command=self.carregar_classificacao,
+                            bg='#6C5CE7',
+                            fg='white',
+                            font=('Helvetica', 10, 'bold'),
+                            relief='flat', padx=10, pady=3)
+        btn_atualizar.pack(side='right')
+
+        # Treeview Frame
+        list_frame = tk.Frame(container, bg='#F5F6FA')
+        list_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky='nsew')
+        list_frame.columnconfigure(0, weight=1)
+        list_frame.rowconfigure(0, weight=1)
+
+        # Define columns for the classification table
+        colunas = ('pos', 'time', 'P', 'J', 'V', 'E', 'D', 'GP', 'GC', 'SG')
+        self.tree = ttk.Treeview(list_frame, columns=colunas, show='headings', height=18)
+
+        # Define headings and column properties
+        self.tree.heading('pos', text='Pos')
+        self.tree.column('pos', width=40, anchor='center')
+        self.tree.heading('time', text='Time')
+        self.tree.column('time', width=200)
+        self.tree.heading('P', text='P')
+        self.tree.column('P', width=40, anchor='center')
+        self.tree.heading('J', text='J')
+        self.tree.column('J', width=40, anchor='center')
+        self.tree.heading('V', text='V')
+        self.tree.column('V', width=40, anchor='center')
+        self.tree.heading('E', text='E')
+        self.tree.column('E', width=40, anchor='center')
+        self.tree.heading('D', text='D')
+        self.tree.column('D', width=40, anchor='center')
+        self.tree.heading('GP', text='GP')
+        self.tree.column('GP', width=40, anchor='center')
+        self.tree.heading('GC', text='GC')
+        self.tree.column('GC', width=40, anchor='center')
+        self.tree.heading('SG', text='SG')
+        self.tree.column('SG', width=40, anchor='center')
+
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+
+        self.tree.grid(row=0, column=0, sticky='nsew')
+        scrollbar.grid(row=0, column=1, sticky='ns')
+
+    def carregar_classificacao(self):
+        # Clear previous entries
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        comp_id = self.app.get_current_competicao()
+        if not comp_id:
+            self.tree.insert('', 'end', values=('', "Selecione uma competição", '', '', '', '', '', '', '', ''))
+            return
+
+        try:
+            tabela = Competicao.calcular_classificacao(comp_id)
+            if tabela:
+                for i, time_stats in enumerate(tabela):
+                    # Order must match the columns defined in self.tree
+                    # ('pos', 'time', 'P', 'J', 'V', 'E', 'D', 'GP', 'GC', 'SG')
+                    values = (
+                        i + 1, # Position
+                        time_stats['nome'],
+                        time_stats['P'],
+                        time_stats['J'],
+                        time_stats['V'],
+                        time_stats['E'],
+                        time_stats['D'],
+                        time_stats['GP'],
+                        time_stats['GC'],
+                        time_stats['SG']
+                    )
+                    self.tree.insert('', 'end', values=values)
+            else:
+                self.tree.insert('', 'end', values=('', "Nenhum time ou jogo concluído", '', '', '', '', '', '', '', ''))
+
+        except Exception as e:
+            messagebox.showerror("Erro ao Carregar Classificação", f"Não foi possível calcular/carregar a classificação: {e}")
+            self.tree.insert('', 'end', values=('', "Erro ao carregar", '', '', '', '', '', '', '', ''))
+
