@@ -2,8 +2,18 @@
 import sqlite3
 from sqlite3 import Error
 from datetime import datetime, timedelta
+import csv
+import os
 from database import criar_conexao
-from config import DIAS_COMPETICAO, HORARIOS_JOGOS, FORMATOS_DISPUTA
+from config import DIAS_COMPETICAO, HORARIOS_JOGOS, FORMATOS_DISPUTA, LIMITE_ATLETAS_POR_TIME
+from models import Competicao, Time, Atleta, Jogo, Pontuacao
+
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
 
 # ==================================================
 # VALIDAÇÃO DE DADOS
@@ -152,7 +162,7 @@ def fazer_backup(path_destino):
     conn = criar_conexao()
     try:
         cursor = conn.cursor()
-        
+
         # Cria backup completo
         with open(path_destino, 'w') as f:
             for linha in conn.iterdump():
@@ -164,3 +174,114 @@ def fazer_backup(path_destino):
     finally:
         if conn:
             conn.close()
+
+# ==================================================
+# EXPORTAÇÃO DE RELATÓRIOS
+# ==================================================
+def exportar_relatorio_csv(competicao_id, tipo_relatorio, caminho_arquivo):
+    """Exporta relatório em CSV."""
+    try:
+        with open(caminho_arquivo, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+
+            if tipo_relatorio == "classificacao":
+                classificacao = Competicao.calcular_classificacao(competicao_id)
+                writer.writerow(['Posição', 'Time', 'Pontos', 'Jogos', 'Vitórias', 'Empates', 'Derrotas', 'Gols Pró', 'Gols Contra', 'Saldo'])
+                for pos, time_data in enumerate(classificacao, 1):
+                    writer.writerow([pos, time_data['nome'], time_data['P'], time_data['J'], time_data['V'], time_data['E'], time_data['D'], time_data['GP'], time_data['GC'], time_data['SG']])
+
+            elif tipo_relatorio == "jogos":
+                jogos = Jogo.listar_por_competicao(competicao_id)
+                writer.writerow(['ID', 'Time Casa', 'Placar', 'Time Visitante', 'Status'])
+                for jogo in jogos:
+                    placar = f"{jogo[3] or 0} x {jogo[4] or 0}" if jogo[5] == 'Concluído' else "-"
+                    writer.writerow([jogo[0], jogo[1], placar, jogo[2], jogo[5]])
+
+            elif tipo_relatorio == "artilheiros":
+                artilheiros = Pontuacao.get_artilheiros(competicao_id)
+                writer.writerow(['Nome', 'Pontos'])
+                for nome, pontos in artilheiros:
+                    writer.writerow([nome, pontos])
+
+        return True
+    except Exception as e:
+        print(f"Erro ao exportar CSV: {e}")
+        return False
+
+def exportar_relatorio_pdf(competicao_id, tipo_relatorio, caminho_arquivo):
+    """Exporta relatório em PDF usando reportlab."""
+    if not REPORTLAB_AVAILABLE:
+        print("ReportLab não está instalado. Instale com: pip install reportlab")
+        return False
+
+    try:
+        c = canvas.Canvas(caminho_arquivo, pagesize=letter)
+        width, height = letter
+
+        # Título
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(100, height - 50, f"Relatório - {tipo_relatorio.capitalize()}")
+
+        y = height - 80
+
+        if tipo_relatorio == "classificacao":
+            classificacao = Competicao.calcular_classificacao(competicao_id)
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(100, y, "Classificação")
+            y -= 20
+            c.setFont("Helvetica", 10)
+            for pos, time_data in enumerate(classificacao, 1):
+                linha = f"{pos}. {time_data['nome']} - {time_data['P']} pts"
+                c.drawString(100, y, linha)
+                y -= 15
+                if y < 50:
+                    c.showPage()
+                    y = height - 50
+
+        elif tipo_relatorio == "jogos":
+            jogos = Jogo.listar_por_competicao(competicao_id)
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(100, y, "Histórico de Jogos")
+            y -= 20
+            c.setFont("Helvetica", 10)
+            for jogo in jogos:
+                placar = f"{jogo[3] or 0} x {jogo[4] or 0}" if jogo[5] == 'Concluído' else "Não realizado"
+                linha = f"{jogo[1]} {placar} {jogo[2]} ({jogo[5]})"
+                c.drawString(100, y, linha)
+                y -= 15
+                if y < 50:
+                    c.showPage()
+                    y = height - 50
+
+        c.save()
+        return True
+    except Exception as e:
+        print(f"Erro ao exportar PDF: {e}")
+        return False
+
+def salvar_versao_relatorio(competicao_id, tipo_relatorio, conteudo):
+    """Salva versão do relatório para histórico."""
+    conn = criar_conexao()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS relatorio_versoes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    competicao_id INTEGER NOT NULL,
+                    tipo TEXT NOT NULL,
+                    conteudo TEXT NOT NULL,
+                    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (competicao_id) REFERENCES competicao(id)
+                )
+            """)
+            cursor.execute("INSERT INTO relatorio_versoes (competicao_id, tipo, conteudo) VALUES (?, ?, ?)",
+                          (competicao_id, tipo_relatorio, conteudo))
+            conn.commit()
+            return True
+        except sqlite3.Error as e:
+            print(f"Erro ao salvar versão do relatório: {e}")
+            return False
+        finally:
+            conn.close()
+    return False

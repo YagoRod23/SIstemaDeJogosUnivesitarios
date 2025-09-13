@@ -3,6 +3,7 @@ import sqlite3
 import random
 from collections import defaultdict
 from database import criar_conexao
+from config import LIMITE_ATLETAS_POR_TIME
 
 # Define default points if not imported from config
 PONTOS_VITORIA = 3
@@ -58,6 +59,56 @@ class Competicao:
             finally:
                 conn.close()
         return competicao_info
+
+    @staticmethod
+    def editar(competicao_id, nome=None, modalidade=None, formato=None):
+        """Edita informações da competição."""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                updates = []
+                params = []
+                if nome:
+                    updates.append("nome = ?")
+                    params.append(nome)
+                if modalidade:
+                    updates.append("modalidade = ?")
+                    params.append(modalidade)
+                if formato:
+                    updates.append("formato_disputa = ?")
+                    params.append(formato)
+                if not updates:
+                    return False
+                params.append(competicao_id)
+                query = f"UPDATE competicao SET {', '.join(updates)} WHERE id = ?"
+                cursor.execute(query, params)
+                conn.commit()
+                return cursor.rowcount > 0
+            except sqlite3.Error as e:
+                print(f"Erro ao editar competição {competicao_id}: {e}")
+                return False
+            finally:
+                conn.close()
+        return False
+
+    @staticmethod
+    def excluir(competicao_id):
+        """Exclui competição e todos os dados relacionados."""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                # Exclusão em cascata será tratada pelas foreign keys
+                cursor.execute("DELETE FROM competicao WHERE id = ?", (competicao_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+            except sqlite3.Error as e:
+                print(f"Erro ao excluir competição {competicao_id}: {e}")
+                return False
+            finally:
+                conn.close()
+        return False
 
     @staticmethod
     def calcular_classificacao(competicao_id):
@@ -140,6 +191,57 @@ class Competicao:
         finally:
             conn.close()
 
+    @staticmethod
+    def salvar_snapshot_classificacao(competicao_id, rodada=None):
+        """Salva um snapshot da classificação atual."""
+        classificacao = Competicao.calcular_classificacao(competicao_id)
+        if not classificacao:
+            return False
+
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                # Create snapshot table if not exists
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS classificacao_snapshot (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        competicao_id INTEGER NOT NULL,
+                        rodada TEXT,
+                        time_id INTEGER NOT NULL,
+                        nome_time TEXT NOT NULL,
+                        pontos INTEGER,
+                        jogos INTEGER,
+                        vitorias INTEGER,
+                        empates INTEGER,
+                        derrotas INTEGER,
+                        gols_pro INTEGER,
+                        gols_contra INTEGER,
+                        saldo_gols INTEGER,
+                        posicao INTEGER,
+                        data_snapshot DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (competicao_id) REFERENCES competicao(id)
+                    )
+                """)
+
+                for pos, time_data in enumerate(classificacao, 1):
+                    cursor.execute("""
+                        INSERT INTO classificacao_snapshot 
+                        (competicao_id, rodada, time_id, nome_time, pontos, jogos, vitorias, empates, derrotas, 
+                         gols_pro, gols_contra, saldo_gols, posicao)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (competicao_id, rodada, None, time_data['nome'], time_data['P'], time_data['J'],
+                          time_data['V'], time_data['E'], time_data['D'], time_data['GP'], time_data['GC'], time_data['SG'], pos))
+
+                conn.commit()
+                return True
+            except sqlite3.Error as e:
+                print(f"Erro ao salvar snapshot: {e}")
+                return False
+            finally:
+                conn.close()
+        return False
+
 # ==================================================
 # Time Model
 # ==================================================
@@ -178,6 +280,43 @@ class Time:
                 conn.close()
         return times
 
+    @staticmethod
+    def editar(time_id, nome=None):
+        """Edita nome do time."""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE time SET nome = ? WHERE id = ?", (nome, time_id))
+                conn.commit()
+                return cursor.rowcount > 0
+            except sqlite3.Error as e:
+                print(f"Erro ao editar time {time_id}: {e}")
+                return False
+            finally:
+                conn.close()
+        return False
+
+    @staticmethod
+    def excluir(time_id):
+        """Exclui time sem afetar atletas (eles ficam órfãos)."""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                # Remove atletas do time (não exclui atletas)
+                cursor.execute("UPDATE atleta SET time_id = NULL WHERE time_id = ?", (time_id,))
+                # Exclui o time
+                cursor.execute("DELETE FROM time WHERE id = ?", (time_id,))
+                conn.commit()
+                return True
+            except sqlite3.Error as e:
+                print(f"Erro ao excluir time {time_id}: {e}")
+                return False
+            finally:
+                conn.close()
+        return False
+
 # ==================================================
 # Atleta Model
 # ==================================================
@@ -215,6 +354,90 @@ class Atleta:
             finally:
                 conn.close()
         return atletas
+
+    @staticmethod
+    def editar(atleta_id, nome=None, numero=None):
+        """Edita nome ou número do atleta."""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                updates = []
+                params = []
+                if nome:
+                    updates.append("nome = ?")
+                    params.append(nome)
+                if numero is not None:
+                    updates.append("numero = ?")
+                    params.append(numero)
+                if not updates:
+                    return False
+                params.append(atleta_id)
+                query = f"UPDATE atleta SET {', '.join(updates)} WHERE id = ?"
+                cursor.execute(query, params)
+                conn.commit()
+                return cursor.rowcount > 0
+            except sqlite3.Error as e:
+                print(f"Erro ao editar atleta {atleta_id}: {e}")
+                return False
+            finally:
+                conn.close()
+        return False
+
+    @staticmethod
+    def excluir(atleta_id):
+        """Remove atleta de um time."""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM atleta WHERE id = ?", (atleta_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+            except sqlite3.Error as e:
+                print(f"Erro ao excluir atleta {atleta_id}: {e}")
+                return False
+            finally:
+                conn.close()
+        return False
+
+    @staticmethod
+    def verificar_numero_unico(time_id, numero, atleta_id=None):
+        """Verifica se o número da camisa é único no time."""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                if atleta_id:
+                    cursor.execute("SELECT COUNT(*) FROM atleta WHERE time_id = ? AND numero = ? AND id != ?", (time_id, numero, atleta_id))
+                else:
+                    cursor.execute("SELECT COUNT(*) FROM atleta WHERE time_id = ? AND numero = ?", (time_id, numero))
+                count = cursor.fetchone()[0]
+                return count == 0
+            except sqlite3.Error as e:
+                print(f"Erro ao verificar número único: {e}")
+                return False
+            finally:
+                conn.close()
+        return False
+
+    @staticmethod
+    def verificar_limite_atletas(time_id, modalidade):
+        """Verifica se atingiu limite máximo de atletas por time baseado na modalidade."""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM atleta WHERE time_id = ?", (time_id,))
+                quantidade = cursor.fetchone()[0]
+                limite = LIMITE_ATLETAS_POR_TIME.get(modalidade, LIMITE_ATLETAS_POR_TIME['Padrão'])
+                return quantidade < limite
+            except sqlite3.Error as e:
+                print(f"Erro ao verificar limite de atletas: {e}")
+                return False
+            finally:
+                conn.close()
+        return False
 
 # ==================================================
 # Jogo Model (Updated for Sumula)
@@ -305,6 +528,28 @@ class Jogo:
         return jogos
 
     @staticmethod
+    def verificar_jogo_duplicado(competicao_id, time_casa_id, time_visitante_id):
+        """Verifica se já existe um jogo entre os mesmos times na competição."""
+        conn = criar_conexao()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(*) FROM jogo 
+                    WHERE competicao_id = ? AND 
+                          ((time_casa_id = ? AND time_visitante_id = ?) OR 
+                           (time_casa_id = ? AND time_visitante_id = ?))
+                """, (competicao_id, time_casa_id, time_visitante_id, time_visitante_id, time_casa_id))
+                count = cursor.fetchone()[0]
+                return count > 0
+            except sqlite3.Error as e:
+                print(f"Erro ao verificar jogo duplicado: {e}")
+                return True  # Assume duplicate to prevent creation
+            finally:
+                conn.close()
+        return True
+
+    @staticmethod
     def gerar_confrontos(competicao_id, formato):
         try:
             times_data = Time.carregar_por_competicao(competicao_id)
@@ -332,8 +577,9 @@ class Jogo:
 
             success_count = 0
             for casa_id, visitante_id in confrontos:
-                if Jogo.criar(competicao_id, casa_id, visitante_id):
-                    success_count += 1
+                if not Jogo.verificar_jogo_duplicado(competicao_id, casa_id, visitante_id):
+                    if Jogo.criar(competicao_id, casa_id, visitante_id):
+                        success_count += 1
             print(f"{success_count} confrontos gerados para a competição {competicao_id}.")
             return success_count > 0
         except Exception as e:
@@ -419,4 +665,3 @@ class Pontuacao:
             finally:
                 conn.close()
         return artilheiros
-
