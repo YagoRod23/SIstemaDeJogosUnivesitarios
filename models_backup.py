@@ -570,26 +570,7 @@ class Jogo:
                     return False
                 random.shuffle(times)
                 for i in range(0, len(times), 2):
-                    confrontos.append((times[i], times[i+1]))
-            elif formato == "Grupos + eliminatórias":
-                if len(times) < 4:
-                    print("São necessários pelo menos 4 times para o formato de grupos.")
-                    return False
-                # Dividir em 2 grupos
-                random.shuffle(times)
-                meio = len(times) // 2
-                grupo_a = times[:meio]
-                grupo_b = times[meio:]
-
-                # Gerar confrontos para o Grupo A (pontos corridos)
-                for i in range(len(grupo_a)):
-                    for j in range(i + 1, len(grupo_a)):
-                        confrontos.append((grupo_a[i], grupo_a[j]))
-
-                # Gerar confrontos para o Grupo B (pontos corridos)
-                for i in range(len(grupo_b)):
-                    for j in range(i + 1, len(grupo_b)):
-                        confrontos.append((grupo_b[i], grupo_b[j]))
+                     confrontos.append((times[i], times[i+1]))
             else:
                 print(f"Formato de disputa '{formato}' não suportado para geração automática.")
                 return False
